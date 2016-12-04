@@ -77,7 +77,9 @@ class NuclosSettings:
 
     @property
     def locale(self):
-        default_locale = locale.getlocale()[0]
+        #TODO: FIX
+        #default_locale = locale.getlocale()[0]
+        default_locale = "de_DE"
         return self.config.get("nuclos", "locale", fallback=default_locale)
 
 
@@ -305,7 +307,7 @@ class NuclosAPI:
 
     def __getitem__(self, name):
         if isinstance(name, str):
-            bo = self.get_business_object_by_name(name)
+            bo = self.get_business_object(name)
             if bo:
                 return bo
             raise IndexError("Unknown business object '{}'.".format(name))
@@ -454,7 +456,7 @@ class BusinessObjectMeta:
     def attributes(self):
         return [AttributeMeta(self, a) for a in self._data["attributes"].values()]
 
-    def get_attribute(self, bo_attr_id):
+    def get_attribute(self, boAttrName):
         """
         Find the metadata for an attribute of this business object.
 
@@ -462,7 +464,7 @@ class BusinessObjectMeta:
         :return: A BOMetaAttribute object. None if the attribute does not exist.
         """
         for attr in self.attributes:
-            if attr.bo_attr_id == bo_attr_id:
+            if attr.boAttrName == boAttrName:
                 return attr
         return None
 
@@ -485,14 +487,14 @@ class BusinessObjectMeta:
         return None
 
     def __getattr__(self, name):
-        attr = self.get_attribute_by_name(name)
+        attr = self.get_attribute(name)
         if attr:
             return attr
         raise AttributeError("Unknown attribute '{}'.".format(name))
 
     def __getitem__(self, name):
         if isinstance(name, str):
-            attr = self.get_attribute_by_name(name)
+            attr = self.get_attribute(name)
             if attr:
                 return attr
             raise IndexError("Unknown attribute '{}'.".format(name))
@@ -511,6 +513,10 @@ class AttributeMeta:
     @property
     def bo_attr_id(self):
         return self._data["boAttrId"]
+
+    @property
+    def boAttrName(self):
+        return self._data["boAttrName"]
 
     def data_index(self):
         """
@@ -1057,27 +1063,27 @@ class BusinessObjectInstance:
         # Allow creation of dependent objects with instance.create_<name>()
         if name.startswith("create_"):
             cname = name[7:]
-            if not self._get_dependency_id_by_name(cname) is None:
+            if not self._get_dependency(cname) is None:
                 def create_dependency():
-                    return self.create_dependency_by_name(cname)
+                    return self.create_dependency(cname)
 
                 return create_dependency
 
         try:
-            return self.get_attribute_by_name(name)
+            return self.get_attribute(name)
         except AttributeError as e:
             try:
-                return self.get_dependencies_by_name(name)
+                return self.get_dependencies(name)
             except AttributeError:
                 raise e
 
     def __getitem__(self, name):
         if isinstance(name, str):
             try:
-                return self.get_attribute_by_name(name)
+                return self.get_attribute(name)
             except AttributeError as e:
                 try:
-                    return self.get_dependencies_by_name(name)
+                    return self.get_dependencies(name)
                 except AttributeError:
                     raise e
         raise TypeError("Invalid argument type.")
@@ -1156,9 +1162,9 @@ class BusinessObjectInstance:
         if "_initialized" not in self.__dict__ or name in self.__dict__:
             super().__setattr__(name, value)
         else:
-            self.set_attribute_by_name(name, value)
+            self.set_attribute(name, value)
 
     def __setitem__(self, name, value):
         if isinstance(name, str):
-            return self.set_attribute_by_name(name, value)
+            return self.set_attribute(name, value)
         raise TypeError("Invalid argument type.")
